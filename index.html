@@ -152,7 +152,7 @@
         let isResizeMode = true;
         let isDragging = false;
         const gridSize = 38;
-        const cellSize = canvas.width / gridSize;
+        const cellSize = 600 / gridSize;
         const history = [];
 
         const offscreenCanvas = document.createElement('canvas');
@@ -370,8 +370,9 @@
         });
 
         function drawOrEraseGridSquare(pointer) {
-            const x = Math.floor(pointer.x / cellSize) * cellSize;
-            const y = Math.floor(pointer.y / cellSize) * cellSize;
+            const zoom = canvas.getZoom();
+            const x = Math.floor(pointer.x / cellSize / zoom) * cellSize;
+            const y = Math.floor(pointer.y / cellSize / zoom) * cellSize;
 
             if (isDrawingMode) {
                 offscreenCtx.fillStyle = colorPicker.value;
@@ -384,8 +385,9 @@
         }
 
         function fillArea(pointer) {
-            const x = Math.floor(pointer.x / cellSize) * cellSize;
-            const y = Math.floor(pointer.y / cellSize) * cellSize;
+            const zoom = canvas.getZoom();
+            const x = Math.floor(pointer.x / cellSize / zoom) * cellSize;
+            const y = Math.floor(pointer.y / cellSize / zoom) * cellSize;
 
             const targetColor = getPixelColor(x, y);
             const fillColor = hexToRgba(colorPicker.value);
