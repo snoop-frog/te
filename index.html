@@ -76,13 +76,10 @@
             position: relative;
             width: 100%;
             max-width: 600px;
-            height: auto;
             margin-bottom: 20px;
         }
 
         canvas {
-            width: 100%;
-            height: auto;
             border: 2px solid #007bff;
             border-radius: 10px;
         }
@@ -126,7 +123,10 @@
     </div>
 
     <script>
-        const canvas = new fabric.Canvas('canvas');
+        const canvas = new fabric.Canvas('canvas', {
+            width: 600,
+            height: 600,
+        });
         const fileUpload = document.getElementById('fileUpload');
         const downloadBtn = document.getElementById('downloadBtn');
         const drawModeBtn = document.getElementById('drawModeBtn');
@@ -548,12 +548,12 @@
 
         function resizeCanvas() {
             const container = document.querySelector('.canvas-container');
-            const ratio = 600 / 600;
             const containerWidth = container.clientWidth;
 
             canvas.setWidth(containerWidth);
-            canvas.setHeight(containerWidth / ratio);
+            canvas.setHeight(containerWidth);
 
+            canvas.setZoom(containerWidth / 600);
             canvas.renderAll();
         }
 
