@@ -4,168 +4,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Octopus Swim</title>
+    <title>Image Upload with Mask</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/4.5.0/fabric.min.js"></script>
     <style>
-        body,
-        html {
-            height: 100%;
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f9f9f9;
+            color: #333;
             margin: 0;
-            background: url('https://raw.githubusercontent.com/snoop-frog/te/main/BG.png') no-repeat center center fixed;
-            background-size: cover;
-            overflow: hidden;
-            position: relative;
-            cursor: pointer;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
-        #octopus {
-            position: absolute;
-            width: 200px;
-            height: 200px;
-            background: url('https://raw.githubusercontent.com/snoop-frog/te/main/SwimUp3.gif') no-repeat center center;
-            background-size: contain;
-            transform: translate(-50%, -50%);
-            transition: transform 1s linear;
-            left: 50%;
-            top: 50%;
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 20px;
         }
 
-        #rune {
-            position: absolute;
-            width: 50px;
-            height: 50px;
-            background: url('https://raw.githubusercontent.com/snoop-frog/te/main/8.png') no-repeat center center;
-            background-size: contain;
-            transform: translate(-50%, -50%);
-            display: none;
-        }
-
-        @media (max-width: 768px) {
-            body,
-            html {
-                background-size: cover;
-                background-position: center center;
-            }
-
-            #octopus {
-                width: 100px;
-                height: 100px;
-            }
-
-            #rune {
-                width: 25px;
-                height: 25px;
-            }
-        }
-
-        .mask-button {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #007bff;
-            color: #fff;
+        .controls button,
+        .controls input {
+            margin: 5px;
+            padding: 10px 15px;
+            font-size: 14px;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            z-index: 1000;
         }
 
-        .mask-button:hover {
+        .controls button {
+            background-color: #007bff;
+            color: #fff;
+        }
+
+        .controls button:hover {
             background-color: #0056b3;
         }
 
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0, 0, 0, 0.5);
-            align-items: center;
+        .controls input[type="file"] {
+            padding: 5px;
+        }
+
+        .controls input[type="color"] {
+            padding: 5px;
+            border: 1px solid #ccc;
+        }
+
+        .thumbnail-container {
+            display: flex;
             justify-content: center;
+            margin-bottom: 20px;
         }
 
-        .modal-content {
-            background-color: #fefefe;
-            margin: auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 80%;
-            max-width: 800px;
-            border-radius: 10px;
+        .thumbnail {
+            width: 50px;
+            height: 50px;
+            margin: 0 5px;
+            cursor: pointer;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .thumbnail:hover {
+            border-color: #007bff;
+        }
+
+        .canvas-container {
             position: relative;
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            margin-bottom: 20px;
         }
 
-        .close {
-            color: #aaa;
-            position: absolute;
-            top: 10px;
-            right: 20px;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
+        canvas {
+            width: 100%;
+            height: auto;
+            border: 2px solid #007bff;
+            border-radius: 10px;
         }
 
-        .close:hover,
-        .close:focus {
-            color: black;
-            text-decoration: none;
-            cursor: pointer;
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .controls button,
+            .controls input {
+                width: 100%;
+                max-width: 300px;
+            }
+
+            .thumbnail {
+                width: 40px;
+                height: 40px;
+            }
         }
     </style>
 </head>
 
 <body>
-    <button class="mask-button" id="maskButton">Mask</button>
-    <div id="octopus"></div>
-    <div id="rune"></div>
-
-    <div id="maskModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <div class="thumbnail-container" id="thumbnailContainer">
-                <!-- Thumbnails will be dynamically added here -->
-            </div>
-            <input type="file" id="fileUpload" />
-            <div class="canvas-container">
-                <canvas id="canvas"></canvas>
-            </div>
-            <div class="controls">
-                <button id="drawModeBtn">Enable Draw Mode</button>
-                <button id="eraseModeBtn">Enable Erase Mode</button>
-                <button id="fillModeBtn">Enable Fill Mode</button>
-                <button id="resizeModeBtn">Disable Resize Mode</button>
-                <button id="undoBtn">Undo</button>
-                <button id="downloadBtn">Download Image</button>
-                <input type="color" id="colorPicker" value="#000000">
-            </div>
-        </div>
+    <div class="thumbnail-container" id="thumbnailContainer">
+        <!-- Thumbnails will be dynamically added here -->
+    </div>
+    <input type="file" id="fileUpload" />
+    <div class="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
+    <div class="controls">
+        <button id="drawModeBtn">Enable Draw Mode</button>
+        <button id="eraseModeBtn">Enable Erase Mode</button>
+        <button id="fillModeBtn">Enable Fill Mode</button>
+        <button id="resizeModeBtn">Disable Resize Mode</button>
+        <button id="undoBtn">Undo</button>
+        <button id="downloadBtn">Download Image</button>
+        <input type="color" id="colorPicker" value="#000000">
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/4.5.0/fabric.min.js"></script>
     <script>
-        const maskButton = document.getElementById('maskButton');
-        const modal = document.getElementById('maskModal');
-        const closeBtn = document.querySelector('.close');
-
-        maskButton.addEventListener('click', () => {
-            modal.style.display = 'flex';
-        });
-
-        closeBtn.addEventListener('click', () => {
-            modal.style.display = 'none';
-        });
-
-        window.addEventListener('click', (event) => {
-            if (event.target == modal) {
-                modal.style.display = 'none';
-            }
-        });
-
         const canvas = new fabric.Canvas('canvas');
         const fileUpload = document.getElementById('fileUpload');
         const downloadBtn = document.getElementById('downloadBtn');
@@ -493,7 +453,7 @@
                 }
                 canvas.add(img);
                 if (isResizeMode && uploadedImg) {
-                    canvas.setActiveObject(uploadedImg);
+                    canvas.setActiveObject(uploadedImg); // Keep the image active for resizing
                 }
             });
         }
@@ -529,28 +489,29 @@
 
         canvas.on('object:added', function () {
             if (logoImg) {
-                logoImg.bringToFront();
+                logoImg.bringToFront(); // Ensure the logo is on top
             }
         });
 
         canvas.on('object:modified', function () {
             if (logoImg) {
-                logoImg.bringToFront();
+                logoImg.bringToFront(); // Ensure the logo is on top
             }
         });
 
         canvas.on('mouse:down', function () {
             if (logoImg) {
-                logoImg.bringToFront();
+                logoImg.bringToFront(); // Ensure the logo is on top
             }
         });
 
         canvas.on('after:render', function () {
             if (logoImg) {
-                logoImg.bringToFront();
+                logoImg.bringToFront(); // Ensure the logo is on top
             }
         });
 
+        // Add touch event support for mobile
         canvas.on('touch:gesture', function (options) {
             const event = options.e;
             if (event.touches && event.touches.length === 2) {
@@ -582,6 +543,7 @@
             }
         });
 
+        // Adjust canvas size on window resize
         window.addEventListener('resize', resizeCanvas);
 
         function resizeCanvas() {
@@ -596,68 +558,6 @@
         }
 
         resizeCanvas();
-    </script>
-    <script>
-        window.addEventListener('load', () => {
-            const octopus = document.getElementById('octopus');
-            const rune = document.getElementById('rune');
-
-            document.body.addEventListener('click', function (event) {
-                moveOctopus(event.clientX, event.clientY);
-            });
-
-            function moveOctopus(x, y) {
-                const newX = x - window.innerWidth / 2;
-                const newY = y - window.innerHeight / 2;
-
-                const currentX = octopus.getBoundingClientRect().left + octopus.clientWidth / 2;
-                const currentY = octopus.getBoundingClientRect().top + octopus.clientHeight / 2;
-                const deltaX = x - currentX;
-                const deltaY = y - currentY;
-                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-                const duration = distance / 100;
-                octopus.style.transition = `transform ${duration}s linear`;
-
-                octopus.style.transform = `translate(${newX}px, ${newY}px)`;
-
-                octopus.addEventListener('transitionend', checkRuneCollision, { once: true });
-            }
-
-            function spawnRune() {
-                const runeX = Math.random() * window.innerWidth;
-                const runeY = Math.random() * window.innerHeight;
-                rune.style.left = `${runeX}px`;
-                rune.style.top = `${runeY}px`;
-                rune.style.display = 'block';
-            }
-
-            function checkRuneCollision() {
-                const octopusRect = octopus.getBoundingClientRect();
-                const runeRect = rune.getBoundingClientRect();
-
-                if (
-                    octopusRect.left < runeRect.right &&
-                    octopusRect.right > runeRect.left &&
-                    octopusRect.top < runeRect.bottom &&
-                    octopusRect.bottom > runeRect.top
-                ) {
-                    rune.style.display = 'none';
-                    setTimeout(spawnRune, 1000);
-                }
-            }
-
-            function centerOctopus() {
-                const centerX = window.innerWidth / 2;
-                const centerY = window.innerHeight / 2;
-                octopus.style.left = `${centerX}px`;
-                octopus.style.top = `${centerY}px`;
-            }
-
-            window.addEventListener('resize', centerOctopus);
-            centerOctopus();
-            spawnRune();
-        });
     </script>
 </body>
 
