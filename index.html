@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Octovaders</title>
+    <title>Space Invaders on Steroids</title>
     <style>
         body {
             margin: 0;
@@ -203,21 +203,21 @@
             const waveShiftPerFrame = 0.01;
 
             const colors = [
-                'rgba(126, 58, 251, 0.223)',
-                'rgba(123, 56, 247, 0.217)',
-                'rgba(85, 212, 255, 0.06)',
-                'rgba(181, 71, 251, 0.160)',
-                'rgba(87, 217, 252, 0.102)',
-                'rgba(107, 52, 252, 0.181)',
-                'rgba(73, 137, 249, 0.180)',
-                'rgba(104, 50, 247, 0.132)',
-                'rgba(90, 226, 253, 0.214)',
-                'rgba(92, 231, 255, 0.255)',
-                'rgba(213, 80, 254, 0.255)',
-                'rgba(87, 79, 249, 0.198)',
-                'rgba(208, 77, 252, 0.213)',
+                'rgba(179, 70, 248, 0.166)',
                 'rgba(74, 156, 251, 0.217)',
-                'rgba(179, 70, 248, 0.166)'
+                'rgba(208, 77, 252, 0.213)',
+                'rgba(87, 79, 249, 0.198)',
+                'rgba(213, 80, 254, 0.255)',
+                'rgba(92, 231, 255, 0.255)',
+                'rgba(90, 226, 253, 0.214)',
+                'rgba(104, 50, 247, 0.132)',
+                'rgba(73, 137, 249, 0.180)',
+                'rgba(107, 52, 252, 0.181)',
+                'rgba(87, 217, 252, 0.102)',
+                'rgba(181, 71, 251, 0.160)',
+                'rgba(85, 212, 255, 0.06)',
+                'rgba(123, 56, 247, 0.217)',
+                'rgba(126, 58, 251, 0.223)'
             ];
 
             for (let i = 0; i < layers; i++) {
@@ -317,8 +317,8 @@
                                 speed: 5,
                                 color: 'lightgreen'
                             };
-                            fragment.x += (Math.random() - 0.5) * 20;
-                            fragment.y += (Math.random() - 0.5) * 20;
+                            fragment.x += (Math.random() - 0.5) * 10;  // Smaller range
+                            fragment.y += (Math.random() - 0.5) * 10;  // Smaller range
                             player.bullets.push(fragment);
                         }
                         player.bullets.splice(index, 1);
@@ -368,7 +368,7 @@
             while (currentInvader) {
                 hitInvaders.push(currentInvader);
                 invaders.splice(invaders.indexOf(currentInvader), 1);
-                currentInvader = findNearestInvader(currentInvader);
+                currentInvender = findNearestInvader(currentInvader);
             }
             for (let i = 0; i < hitInvaders.length - 1; i++) {
                 drawLightning(hitInvaders[i].x, hitInvaders[i].y, hitInvaders[i + 1].x, hitInvaders[i + 1].y, 5, 'yellow');
@@ -720,7 +720,7 @@
         }
 
         function createExplosion(x, y, color) {
-            for (let i = 0; i < 10; i++) {
+            for (let i = 0; i < 5; i++) {
                 createParticle(x, y, color);
             }
         }
@@ -730,9 +730,9 @@
                 x: x,
                 y: y,
                 color: color,
-                size: Math.random() * 5 + 2,
-                speedX: (Math.random() - 0.5) * 3,
-                speedY: (Math.random() - 0.5) * 3,
+                size: Math.random() * 3 + 2,
+                speedX: (Math.random() - 0.5) * 2,
+                speedY: (Math.random() - 0.5) * 2,
                 life: 50
             });
         }
@@ -765,7 +765,7 @@
         setInterval(shootBullet, player.fireRate);
         gameLoop();
 
-        function gameLoop() {
+        function gameLoop() { 
             if (gameOver) {
                 setTimeout(() => {
                     alert("Game Over!");
