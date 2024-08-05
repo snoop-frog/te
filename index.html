@@ -1,566 +1,789 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Upload with Mask</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/4.5.0/fabric.min.js"></script>
+    <title>Octovaders</title>
     <style>
         body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f9f9f9;
-            color: #333;
             margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            overflow: hidden;
+            background: black;
         }
-
-        .controls {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-
-        .controls button,
-        .controls input {
-            margin: 5px;
-            padding: 10px 15px;
-            font-size: 14px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        .controls button {
-            background-color: #007bff;
-            color: #fff;
-        }
-
-        .controls button:hover {
-            background-color: #0056b3;
-        }
-
-        .controls input[type="file"] {
-            padding: 5px;
-        }
-
-        .controls input[type="color"] {
-            padding: 5px;
-            border: 1px solid #ccc;
-        }
-
-        .thumbnail-container {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-
-        .thumbnail {
-            width: 50px;
-            height: 50px;
-            margin: 0 5px;
-            cursor: pointer;
-            border: 2px solid #ccc;
-            border-radius: 5px;
-        }
-
-        .thumbnail:hover {
-            border-color: #007bff;
-        }
-
-        .canvas-container {
-            position: relative;
-            width: 100%;
-            max-width: 600px;
-            margin-bottom: 20px;
-        }
-
         canvas {
-            border: 2px solid #007bff;
-            border-radius: 10px;
+            display: block;
         }
-
-        @media (max-width: 768px) {
-            .controls {
-                flex-direction: column;
-                align-items: center;
-            }
-
-            .controls button,
-            .controls input {
-                width: 100%;
-                max-width: 300px;
-            }
-
-            .thumbnail {
-                width: 40px;
-                height: 40px;
-            }
+        #scoreboard {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 20px;
+        }
+        #powerup-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 30px;
+            display: none;
         }
     </style>
 </head>
-
 <body>
-    <div class="thumbnail-container" id="thumbnailContainer">
-        <!-- Thumbnails will be dynamically added here -->
-    </div>
-    <input type="file" id="fileUpload" />
-    <div class="canvas-container">
-        <canvas id="canvas"></canvas>
-    </div>
-    <div class="controls">
-        <button id="drawModeBtn">Enable Draw Mode</button>
-        <button id="eraseModeBtn">Enable Erase Mode</button>
-        <button id="fillModeBtn">Enable Fill Mode</button>
-        <button id="resizeModeBtn">Disable Resize Mode</button>
-        <button id="undoBtn">Undo</button>
-        <button id="downloadBtn">Download Image</button>
-        <input type="color" id="colorPicker" value="#000000">
-    </div>
-
+    <div id="scoreboard">Score: 0</div>
+    <div id="powerup-message"></div>
+    <canvas id="gameCanvas"></canvas>
     <script>
-        const canvas = new fabric.Canvas('canvas', {
-            width: 600,
-            height: 600,
-        });
-        const fileUpload = document.getElementById('fileUpload');
-        const downloadBtn = document.getElementById('downloadBtn');
-        const drawModeBtn = document.getElementById('drawModeBtn');
-        const eraseModeBtn = document.getElementById('eraseModeBtn');
-        const fillModeBtn = document.getElementById('fillModeBtn');
-        const resizeModeBtn = document.getElementById('resizeModeBtn');
-        const undoBtn = document.getElementById('undoBtn');
-        const colorPicker = document.getElementById('colorPicker');
-        const thumbnailContainer = document.getElementById('thumbnailContainer');
-        const maskUrls = [
-            'https://raw.githubusercontent.com/snoop-frog/te/main/octoframe2.png',
-            'https://raw.githubusercontent.com/snoop-frog/te/main/octoframe2.png',
-            'https://raw.githubusercontent.com/snoop-frog/te/main/octoframe2.png',
-            'https://raw.githubusercontent.com/snoop-frog/te/main/octoframe2.png',
-            'https://raw.githubusercontent.com/snoop-frog/te/main/octoframe2.png'
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let score = 0;
+        let frameCount = 0;
+        let gameOver = false;
+        let enemySpeedIncreaseFactor = 1;
+        let invaderSpawnRate = 1000;
+        let powerUpMessageTimeout;
+        const particles = [];
+        const activePowerUps = {};
+
+        const player = {
+            x: canvas.width / 2 - 50,
+            y: 20,
+            width: 200,
+            height: 200,
+            speed: 10,
+            bullets: [],
+            image: new Image(),
+            fireRate: 100,
+            powerUps: {
+                doubleBullet: 0,
+                tripleBullet: 0,
+                fastBullet: 0,
+                sidewinder: 0,
+                seeker: 0,
+                bulletMultiplier: 1,
+                explosive: 0,
+                laser: 0,
+                freeze: 0,
+                poison: 0,
+                piercing: 0,
+                scatter: 0,
+                homing: 0,
+                rapidFire: 0,
+                shield: 0,
+                chainLightning: 0,
+                bounce: 0,
+                stealth: 0,
+                magnet: 0,
+                timeWarp: 0,
+                blackHole: 0,
+                napalm: 0,
+                fragment: 0,
+                overcharge: 0,
+                berserk: 0
+            }
+        };
+
+        player.image.src = 'https://raw.githubusercontent.com/snoop-frog/te/main/swimcrop.gif';
+
+        const invaders = [];
+        const powerUps = [];
+        let invaderSpeed = 2;
+        const powerUpSpawnRate = 5000;
+
+        const enemyTypes = [
+            { shape: 'rect', width: 50, height: 50, color: 'magenta' },
+            { shape: 'circle', radius: 25, color: 'yellow' },
+            { shape: 'triangle', width: 50, height: 50, color: 'red' }
         ];
-        const logoUrl = 'https://raw.githubusercontent.com/snoop-frog/te/main/PNG.png';
-        let uploadedImg;
-        let logoImg;
-        let isDrawingMode = false;
-        let isErasingMode = false;
-        let isFillMode = false;
-        let isResizeMode = true;
-        let isDragging = false;
-        const gridSize = 38;
-        const cellSize = 600 / gridSize;
-        const history = [];
 
-        const offscreenCanvas = document.createElement('canvas');
-        offscreenCanvas.width = 600;
-        offscreenCanvas.height = 600;
-        const offscreenCtx = offscreenCanvas.getContext('2d');
+        const powerUpTypes = [
+            { type: 'doubleBullet', color: 'blue', name: 'Double Bullet' },
+            { type: 'tripleBullet', color: 'green', name: 'Triple Bullet' },
+            { type: 'fastBullet', color: 'orange', name: 'Fast Bullet' },
+            { type: 'sidewinder', color: 'purple', name: 'Sidewinder' },
+            { type: 'seeker', color: 'pink', name: 'Seeker' },
+            { type: 'bulletMultiplier', color: 'cyan', name: 'Bullet Multiplier' },
+            { type: 'explosive', color: 'red', name: 'Explosive' },
+            { type: 'laser', color: 'lime', name: 'Laser' },
+            { type: 'freeze', color: 'lightblue', name: 'Freeze' },
+            { type: 'poison', color: 'violet', name: 'Poison' },
+            { type: 'piercing', color: 'gold', name: 'Piercing' },
+            { type: 'scatter', color: 'brown', name: 'Scatter' },
+            { type: 'homing', color: 'silver', name: 'Homing' },
+            { type: 'rapidFire', color: 'teal', name: 'Rapid Fire' },
+            { type: 'shield', color: 'white', name: 'Shield' },
+            { type: 'chainLightning', color: 'yellow', name: 'Chain Lightning' },
+            { type: 'bounce', color: 'orange', name: 'Bounce' },
+            { type: 'stealth', color: 'black', name: 'Stealth' },
+            { type: 'magnet', color: 'purple', name: 'Magnet' },
+            { type: 'timeWarp', color: 'blue', name: 'Time Warp' },
+            { type: 'blackHole', color: 'darkblue', name: 'Black Hole' },
+            { type: 'napalm', color: 'red', name: 'Napalm' },
+            { type: 'fragment', color: 'lightgreen', name: 'Fragment' },
+            { type: 'overcharge', color: 'pink', name: 'Overcharge' },
+            { type: 'berserk', color: 'darkred', name: 'Berserk' }
+        ];
 
-        function createMaskThumbnails() {
-            maskUrls.forEach((url, index) => {
-                const img = new Image();
-                img.src = url;
-                img.classList.add('thumbnail');
-                img.onclick = () => applyMask(url);
-                thumbnailContainer.appendChild(img);
-            });
+        const bulletTypes = {
+            normal: { speed: 10, color: 'lime' },
+            explosive: { speed: 10, color: 'red', explode: true },
+            wave: { speed: 10, color: 'blue', wave: true },
+            ghost: { speed: 12, color: 'white', ghost: true },
+            chainLightning: { speed: 15, color: 'yellow', lightning: true },
+            bounce: { speed: 10, color: 'orange', bounce: true },
+            stealth: { speed: 12, color: 'black', stealth: true },
+            magnet: { speed: 10, color: 'purple', magnet: true },
+            timeWarp: { speed: 10, color: 'blue', timeWarp: true },
+            blackHole: { speed: 8, color: 'darkblue', blackHole: true },
+            napalm: { speed: 10, color: 'red', napalm: true },
+            fragment: { speed: 10, color: 'lightgreen', fragment: true },
+            overcharge: { speed: 10, color: 'pink', overcharge: true },
+            berserk: { speed: 20, color: 'darkred', berserk: true }
+        };
 
-            // Apply the first mask by default
-            applyMask(maskUrls[0]);
-        }
-
-        function upscaleImage(src, scaleFactor, callback) {
-            const img = new Image();
-            img.crossOrigin = "Anonymous";
-            img.onload = function () {
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = img.width * scaleFactor;
-                tempCanvas.height = img.height * scaleFactor;
-                const tempCtx = tempCanvas.getContext('2d');
-                tempCtx.imageSmoothingEnabled = false;
-                tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
-                callback(tempCanvas.toDataURL());
+        function resetGame() {
+            score = 0;
+            frameCount = 0;
+            gameOver = false;
+            invaderSpeed = 2;
+            invaderSpawnRate = 1000;
+            enemySpeedIncreaseFactor = 1;
+            player.x = canvas.width / 2 - 50;
+            player.y = 20;
+            player.bullets = [];
+            player.fireRate = 100;
+            player.powerUps = {
+                doubleBullet: 0,
+                tripleBullet: 0,
+                fastBullet: 0,
+                sidewinder: 0,
+                seeker: 0,
+                bulletMultiplier: 1,
+                explosive: 0,
+                laser: 0,
+                freeze: 0,
+                poison: 0,
+                piercing: 0,
+                scatter: 0,
+                homing: 0,
+                rapidFire: 0,
+                shield: 0,
+                chainLightning: 0,
+                bounce: 0,
+                stealth: 0,
+                magnet: 0,
+                timeWarp: 0,
+                blackHole: 0,
+                napalm: 0,
+                fragment: 0,
+                overcharge: 0,
+                berserk: 0
             };
-            img.src = src;
+            invaders.length = 0;
+            powerUps.length = 0;
+            particles.length = 0;
+            for (const powerUp in activePowerUps) {
+                clearTimeout(activePowerUps[powerUp]);
+            }
+            document.getElementById('scoreboard').innerText = `Score: ${score}`;
+            gameLoop();
         }
 
-        function applyMask(maskUrl) {
-            upscaleImage(maskUrl, 21, function (upscaledMaskUrl) {
-                const img = new Image();
-                img.crossOrigin = "Anonymous";
-                img.onload = function () {
-                    offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
-                    offscreenCtx.drawImage(img, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
-                    updateMainCanvas();
+        function drawWaves() {
+            const layers = 15;
+            const waveHeight = 20;
+            const wavelength = canvas.width / 2;
+            const waveShiftPerFrame = 0.01;
+
+            const colors = [
+                'rgba(126, 58, 251, 0.223)',
+                'rgba(123, 56, 247, 0.217)',
+                'rgba(85, 212, 255, 0.06)',
+                'rgba(181, 71, 251, 0.160)',
+                'rgba(87, 217, 252, 0.102)',
+                'rgba(107, 52, 252, 0.181)',
+                'rgba(73, 137, 249, 0.180)',
+                'rgba(104, 50, 247, 0.132)',
+                'rgba(90, 226, 253, 0.214)',
+                'rgba(92, 231, 255, 0.255)',
+                'rgba(213, 80, 254, 0.255)',
+                'rgba(87, 79, 249, 0.198)',
+                'rgba(208, 77, 252, 0.213)',
+                'rgba(74, 156, 251, 0.217)',
+                'rgba(179, 70, 248, 0.166)'
+            ];
+
+            for (let i = 0; i < layers; i++) {
+                const phaseShift = frameCount * waveShiftPerFrame + i * Math.PI / 4;
+                const color = colors[i % colors.length];
+                ctx.fillStyle = color;
+
+                ctx.beginPath();
+                for (let x = 0; x <= canvas.width; x += 10) {
+                    const y = Math.sin((x / wavelength) + phaseShift) * waveHeight + (canvas.height / layers * i);
+                    ctx.lineTo(x, y);
+                }
+                ctx.lineTo(canvas.width, canvas.height);
+                ctx.lineTo(0, canvas.height);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            frameCount++;
+        }
+
+        function drawPlayer() {
+            ctx.drawImage(player.image, player.x, player.y, player.width, player.height);
+        }
+
+        function drawBullets() {
+            player.bullets.forEach((bullet, index) => {
+                bullet.y += bullet.speed;
+
+                // Stackable effects
+                if (player.powerUps.sidewinder) {
+                    bullet.x += Math.sin(bullet.y / 10) * 20;
+                }
+                if (player.powerUps.seeker) {
+                    const nearestInvader = findNearestInvader(bullet);
+                    if (nearestInvader) {
+                        const angle = Math.atan2(nearestInvader.y - bullet.y, nearestInvader.x - bullet.x);
+                        bullet.x += Math.cos(angle) * bullet.speed;
+                        bullet.y += Math.sin(angle) * bullet.speed;
+                    }
+                }
+                if (player.powerUps.chainLightning) {
+                    const nearestInvader = findNearestInvader(bullet);
+                    if (nearestInvader) {
+                        drawLightning(bullet.x, bullet.y, nearestInvader.x, nearestInvader.y, 5, 'yellow');
+                        const angle = Math.atan2(nearestInvader.y - bullet.y, nearestInvader.x - bullet.x);
+                        bullet.x += Math.cos(angle) * bullet.speed;
+                        bullet.y += Math.sin(angle) * bullet.speed;
+                    }
+                }
+
+                if (player.powerUps.explosive) {
+                    ctx.fillStyle = 'red';
+                    ctx.beginPath();
+                    ctx.arc(bullet.x, bullet.y, 15, 0, Math.PI * 2);
+                    ctx.fill();
+                    createExplosion(bullet.x, bullet.y, 'red');
+                } else if (player.powerUps.laser) {
+                    ctx.fillStyle = 'lime';
+                    ctx.fillRect(bullet.x, bullet.y, bullet.width, canvas.height - bullet.y);
+                } else if (player.powerUps.wave) {
+                    bullet.x += Math.sin(bullet.y / 10) * 20;
+                } else if (player.powerUps.ghost) {
+                    ctx.globalAlpha = 0.5;
+                } else if (player.powerUps.chainLightning) {
+                    drawLightning(bullet.x, bullet.y, bullet.x, bullet.y + 50, 5, 'yellow');
+                } else if (player.powerUps.bounce) {
+                    if (bullet.y <= 0 || bullet.y >= canvas.height) {
+                        bullet.speed = -bullet.speed;
+                    }
+                } else if (player.powerUps.stealth) {
+                    ctx.globalAlpha = 0.2;
+                } else if (player.powerUps.magnet) {
+                    const nearestInvader = findNearestInvader(bullet);
+                    if (nearestInvader) {
+                        const angle = Math.atan2(nearestInvader.y - bullet.y, nearestInvader.x - bullet.x);
+                        bullet.x += Math.cos(angle) * 5;
+                        bullet.y += Math.sin(angle) * 5;
+                    }
+                } else if (player.powerUps.timeWarp) {
+                    bullet.speed = bullet.speed / 2;
+                } else if (player.powerUps.blackHole) {
+                    ctx.fillStyle = 'darkblue';
+                    ctx.beginPath();
+                    ctx.arc(bullet.x, bullet.y, 30, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (player.powerUps.napalm) {
+                    drawFire(bullet.x, bullet.y);
+                } else if (player.powerUps.fragment) {
+                    if (bullet.y <= 0 || bullet.y >= canvas.height) {
+                        for (let i = 0; i < 3; i++) {
+                            const fragment = {
+                                x: bullet.x,
+                                y: bullet.y,
+                                width: 5,
+                                height: 5,
+                                speed: 5,
+                                color: 'lightgreen'
+                            };
+                            fragment.x += (Math.random() - 0.5) * 20;
+                            fragment.y += (Math.random() - 0.5) * 20;
+                            player.bullets.push(fragment);
+                        }
+                        player.bullets.splice(index, 1);
+                    }
+                } else if (player.powerUps.overcharge) {
+                    bullet.width *= 1.1;
+                    bullet.height *= 1.1;
+                    createOverchargeEffect(bullet.x, bullet.y);
+                } else if (player.powerUps.berserk) {
+                    bullet.speed *= 2;
+                }
+
+                ctx.fillStyle = bullet.color;
+                ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(bullet.x, bullet.y, bullet.width, bullet.height);
+
+                ctx.globalAlpha = 1;
+
+                if (bullet.y > canvas.height || bullet.x < 0 || bullet.x > canvas.width) {
+                    player.bullets.splice(index, 1);
+                }
+            });
+        }
+
+        function drawLightning(startX, startY, endX, endY, segments, color) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+
+            for (let i = 0; i < segments; i++) {
+                const midX = startX + (endX - startX) / segments * i + (Math.random() - 0.5) * 10;
+                const midY = startY + (endY - startY) / segments * i + (Math.random() - 0.5) * 10;
+                ctx.lineTo(midX, midY);
+            }
+
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+        }
+
+        function chainLightning(bullet) {
+            let hitInvaders = [];
+            let currentInvader = findNearestInvader(bullet);
+            while (currentInvader) {
+                hitInvaders.push(currentInvader);
+                invaders.splice(invaders.indexOf(currentInvader), 1);
+                currentInvader = findNearestInvader(currentInvader);
+            }
+            for (let i = 0; i < hitInvaders.length - 1; i++) {
+                drawLightning(hitInvaders[i].x, hitInvaders[i].y, hitInvaders[i + 1].x, hitInvaders[i + 1].y, 5, 'yellow');
+            }
+        }
+
+        function drawFire(x, y) {
+            const gradient = ctx.createRadialGradient(x, y, 5, x, y, 50);
+            gradient.addColorStop(0, 'orange');
+            gradient.addColorStop(1, 'red');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(x, y, 50, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function createOverchargeEffect(x, y) {
+            const gradient = ctx.createRadialGradient(x, y, 10, x, y, 50);
+            gradient.addColorStop(0, 'pink');
+            gradient.addColorStop(1, 'rgba(255, 182, 193, 0)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(x, y, 50, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function shootBullet() {
+            const numBullets = player.powerUps.bulletMultiplier * 3;
+            const bulletSpread = player.powerUps.scatter ? 60 : 30;
+            const waveAmplitude = 50;
+            for (let i = 0; i < numBullets; i++) {
+                const angleOffset = (i - (numBullets - 1) / 2) * bulletSpread;
+                const bullet = {
+                    x: player.x + player.width / 2 - 2.5,
+                    y: player.y + player.height,
+                    width: player.powerUps.piercing ? 3 : 5,
+                    height: player.powerUps.piercing ? 30 : 15,
+                    speed: player.powerUps.fastBullet ? 20 : 10,
+                    color: getBulletColor(),
+                    angle: angleOffset,
+                    waveOffset: waveAmplitude * Math.sin(frameCount / 10 + angleOffset)
                 };
-                img.src = upscaledMaskUrl;
-            });
+                bullet.x += angleOffset;
+                bullet.y += bullet.waveOffset;
+                player.bullets.push(bullet);
+            }
+            if (player.powerUps.laser) {
+                const laser = {
+                    x: player.x + player.width / 2 - 2.5,
+                    y: player.y + player.height,
+                    width: 5,
+                    height: canvas.height - player.y - player.height,
+                    speed: 0,
+                    color: bulletTypes.laser.color,
+                    type: 'laser'
+                };
+                player.bullets.push(laser);
+            }
         }
 
-        function addLogoToCanvas() {
-            fabric.Image.fromURL(logoUrl, function (img) {
-                const scaleFactor = 500 / img.width;
-                img.set({
-                    left: (600 - 500) / 2,
-                    top: 600 * 0.125,
-                    scaleX: scaleFactor,
-                    scaleY: scaleFactor,
-                    selectable: false,
-                    evented: false,
-                });
-                logoImg = img;
-                canvas.add(img);
-                img.bringToFront();
-            }, { crossOrigin: 'anonymous' });
+        function getBulletColor() {
+            if (player.powerUps.explosive) return 'red';
+            if (player.powerUps.laser) return 'lime';
+            if (player.powerUps.chainLightning) return 'yellow';
+            if (player.powerUps.bounce) return 'orange';
+            if (player.powerUps.stealth) return 'black';
+            if (player.powerUps.magnet) return 'purple';
+            if (player.powerUps.timeWarp) return 'blue';
+            if (player.powerUps.blackHole) return 'darkblue';
+            if (player.powerUps.napalm) return 'red';
+            if (player.powerUps.fragment) return 'lightgreen';
+            if (player.powerUps.overcharge) return 'pink';
+            if (player.powerUps.berserk) return 'darkred';
+            return 'lime';
         }
 
-        createMaskThumbnails();
-        addLogoToCanvas(); // Add the logo when the page loads
-
-        fileUpload.addEventListener('change', function (e) {
-            const reader = new FileReader();
-            reader.onload = function (event) {
-                fabric.Image.fromURL(event.target.result, function (img) {
-                    const scaleFactor = Math.max(270 / img.width, 270 / img.height);
-                    img.set({
-                        left: 165, // Adjust for smaller canvas
-                        top: 165, // Adjust for smaller canvas
-                        scaleX: scaleFactor,
-                        scaleY: scaleFactor,
-                        selectable: true,
-                        evented: true,
-                        clipPath: new fabric.Rect({
-                            left: 165, // Adjust for smaller canvas
-                            top: 165, // Adjust for smaller canvas
-                            width: 270,
-                            height: 270,
-                            absolutePositioned: true
-                        })
-                    });
-                    if (uploadedImg) {
-                        canvas.remove(uploadedImg);
-                    }
-                    uploadedImg = img;
-                    canvas.add(img);
-                    canvas.setActiveObject(img);
-                    enterResizeMode(); // Automatically enter resize mode
-                    if (logoImg) {
-                        logoImg.bringToFront(); // Ensure the logo is on top
-                    }
-                }, { crossOrigin: 'anonymous' });
+        function spawnInvader() {
+            const type = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
+            const invader = {
+                x: Math.random() * (canvas.width - type.width || type.radius * 2),
+                y: canvas.height,
+                type: type,
+                speed: invaderSpeed,
+                pattern: Math.random() > 0.5 ? 'left-right' : 'up-down',
+                direction: 1,
+                patternCounter: 0
             };
-            reader.readAsDataURL(e.target.files[0]);
-        });
-
-        drawModeBtn.addEventListener('click', function () {
-            isDrawingMode = !isDrawingMode;
-            isErasingMode = false;
-            isFillMode = false;
-            isResizeMode = false;
-            canvas.selection = !isDrawingMode;
-            if (uploadedImg) {
-                uploadedImg.selectable = !isDrawingMode;
-                uploadedImg.evented = !isDrawingMode;
-            }
-            drawModeBtn.textContent = isDrawingMode ? 'Disable Draw Mode' : 'Enable Draw Mode';
-            eraseModeBtn.textContent = 'Enable Erase Mode';
-            fillModeBtn.textContent = 'Enable Fill Mode';
-            resizeModeBtn.textContent = 'Enable Resize Mode';
-            if (logoImg) {
-                logoImg.bringToFront(); // Ensure the logo is on top
-            }
-        });
-
-        eraseModeBtn.addEventListener('click', function () {
-            isErasingMode = !isErasingMode;
-            isDrawingMode = false;
-            isFillMode = false;
-            isResizeMode = false;
-            canvas.selection = !isErasingMode;
-            if (uploadedImg) {
-                uploadedImg.selectable = !isErasingMode;
-                uploadedImg.evented = !isErasingMode;
-            }
-            eraseModeBtn.textContent = isErasingMode ? 'Disable Erase Mode' : 'Enable Erase Mode';
-            drawModeBtn.textContent = 'Enable Draw Mode';
-            fillModeBtn.textContent = 'Enable Fill Mode';
-            resizeModeBtn.textContent = 'Enable Resize Mode';
-            if (logoImg) {
-                logoImg.bringToFront(); // Ensure the logo is on top
-            }
-        });
-
-        fillModeBtn.addEventListener('click', function () {
-            isFillMode = !isFillMode;
-            isDrawingMode = false;
-            isErasingMode = false;
-            isResizeMode = false;
-            canvas.selection = !isFillMode;
-            if (uploadedImg) {
-                uploadedImg.selectable = !isFillMode;
-                uploadedImg.evented = !isFillMode;
-            }
-            fillModeBtn.textContent = isFillMode ? 'Disable Fill Mode' : 'Enable Fill Mode';
-            drawModeBtn.textContent = 'Enable Draw Mode';
-            eraseModeBtn.textContent = 'Enable Erase Mode';
-            resizeModeBtn.textContent = 'Enable Resize Mode';
-            if (logoImg) {
-                logoImg.bringToFront(); // Ensure the logo is on top
-            }
-        });
-
-        resizeModeBtn.addEventListener('click', function () {
-            isResizeMode = !isResizeMode;
-            isDrawingMode = false;
-            isErasingMode = false;
-            isFillMode = false;
-            enterResizeMode();
-            if (logoImg) {
-                logoImg.bringToFront(); // Ensure the logo is on top
-            }
-        });
-
-        function enterResizeMode() {
-            canvas.selection = isResizeMode;
-            if (uploadedImg) {
-                uploadedImg.selectable = isResizeMode;
-                uploadedImg.evented = isResizeMode;
-                canvas.setActiveObject(uploadedImg);
-            }
-            resizeModeBtn.textContent = isResizeMode ? 'Disable Resize Mode' : 'Enable Resize Mode';
-            drawModeBtn.textContent = 'Enable Draw Mode';
-            eraseModeBtn.textContent = 'Enable Erase Mode';
-            fillModeBtn.textContent = 'Enable Fill Mode';
-            if (logoImg) {
-                logoImg.bringToFront(); // Ensure the logo is on top
-            }
+            invaders.push(invader);
         }
 
-        function saveState() {
-            const imageData = offscreenCtx.getImageData(0, 0, offscreenCanvas.width, offscreenCanvas.height);
-            history.push(imageData);
+        function spawnPowerUp() {
+            const type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+            const powerUp = {
+                x: Math.random() * (canvas.width - 30),
+                y: canvas.height,
+                type: type
+            };
+            powerUps.push(powerUp);
         }
 
-        canvas.on('mouse:down', function (options) {
-            if (options.pointer) {
-                if (isDrawingMode || isErasingMode) {
-                    isDragging = true;
-                    saveState();
-                    drawOrEraseGridSquare(options.pointer);
-                } else if (isFillMode) {
-                    saveState();
-                    fillArea(options.pointer);
+        function drawInvaders() {
+            invaders.forEach((invader, index) => {
+                ctx.fillStyle = invader.type.color;
+
+                switch (invader.type.shape) {
+                    case 'rect':
+                        ctx.fillRect(invader.x, invader.y, invader.type.width, invader.type.height);
+                        ctx.strokeStyle = 'black';
+                        ctx.lineWidth = 3;
+                        ctx.strokeRect(invader.x, invader.y, invader.type.width, invader.type.height);
+                        break;
+                    case 'circle':
+                        ctx.beginPath();
+                        ctx.arc(invader.x + invader.type.radius, invader.y + invader.type.radius, invader.type.radius, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.strokeStyle = 'black';
+                        ctx.lineWidth = 3;
+                        ctx.stroke();
+                        break;
+                    case 'triangle':
+                        ctx.beginPath();
+                        ctx.moveTo(invader.x + invader.type.width / 2, invader.y);
+                        ctx.lineTo(invader.x, invader.y + invader.type.height);
+                        ctx.lineTo(invader.x + invader.type.width, invader.y + invader.type.height);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.strokeStyle = 'black';
+                        ctx.lineWidth = 3;
+                        ctx.stroke();
+                        break;
                 }
-            }
-        });
 
-        canvas.on('mouse:move', function (options) {
-            if ((isDrawingMode || isErasingMode) && isDragging && options.pointer) {
-                drawOrEraseGridSquare(options.pointer);
-            }
-        });
-
-        canvas.on('mouse:up', function () {
-            isDragging = false;
-            updateMainCanvas();
-        });
-
-        function drawOrEraseGridSquare(pointer) {
-            const zoom = canvas.getZoom();
-            const x = Math.floor(pointer.x / cellSize / zoom) * cellSize;
-            const y = Math.floor(pointer.y / cellSize / zoom) * cellSize;
-
-            if (isDrawingMode) {
-                offscreenCtx.fillStyle = colorPicker.value;
-                offscreenCtx.fillRect(x, y, cellSize, cellSize);
-            } else if (isErasingMode) {
-                offscreenCtx.clearRect(x, y, cellSize, cellSize);
-            }
-
-            updateMainCanvas();
-        }
-
-        function fillArea(pointer) {
-            const zoom = canvas.getZoom();
-            const x = Math.floor(pointer.x / cellSize / zoom) * cellSize;
-            const y = Math.floor(pointer.y / cellSize / zoom) * cellSize;
-
-            const targetColor = getPixelColor(x, y);
-            const fillColor = hexToRgba(colorPicker.value);
-
-            if (targetColor[3] === 0 || colorsMatch(targetColor, fillColor)) return;
-
-            floodFill(x, y, targetColor, fillColor);
-            updateMainCanvas();
-        }
-
-        function getPixelColor(x, y) {
-            const pixel = offscreenCtx.getImageData(x, y, 1, 1).data;
-            return [pixel[0], pixel[1], pixel[2], pixel[3]];
-        }
-
-        function hexToRgba(hex) {
-            const r = parseInt(hex.slice(1, 3), 16);
-            const g = parseInt(hex.slice(3, 5), 16);
-            const b = parseInt(hex.slice(5, 7), 16);
-            return [r, g, b, 255];
-        }
-
-        function colorsMatch(color1, color2) {
-            return color1[0] === color2[0] &&
-                color1[1] === color2[1] &&
-                color1[2] === color2[2] &&
-                color1[3] === color2[3];
-        }
-
-        function floodFill(x, y, targetColor, fillColor) {
-            const stack = [[x, y]];
-
-            while (stack.length > 0) {
-                const [currentX, currentY] = stack.pop();
-                const currentColor = getPixelColor(currentX, currentY);
-
-                if (colorsMatch(currentColor, targetColor)) {
-                    offscreenCtx.fillStyle = `rgba(${fillColor[0]}, ${fillColor[1]}, ${fillColor[2]}, ${fillColor[3] / 255})`;
-                    offscreenCtx.fillRect(currentX, currentY, cellSize, cellSize);
-
-                    stack.push([currentX + cellSize, currentY]);
-                    stack.push([currentX - cellSize, currentY]);
-                    stack.push([currentX, currentY + cellSize]);
-                    stack.push([currentX, currentY - cellSize]);
+                if (invader.pattern === 'left-right') {
+                    invader.x += invader.direction * invader.speed;
+                    invader.patternCounter++;
+                    if (invader.patternCounter > 50) {
+                        invader.direction *= -1;
+                        invader.patternCounter = 0;
+                    }
+                } else {
+                    invader.y -= invader.direction * invader.speed;
+                    invader.patternCounter++;
+                    if (invader.patternCounter > 50) {
+                        invader.direction *= -1;
+                        invader.patternCounter = 0;
+                    }
                 }
-            }
+
+                invader.y -= invader.speed;
+
+                if (invader.y < 0) {
+                    invaders.splice(index, 1);
+                }
+            });
         }
 
-        function updateMainCanvas() {
-            const dataUrl = offscreenCanvas.toDataURL();
-            fabric.Image.fromURL(dataUrl, function (img) {
-                img.set({
-                    left: 0,
-                    top: 0,
-                    selectable: false,
-                    evented: false
+        function drawPowerUps() {
+            powerUps.forEach((powerUp, index) => {
+                ctx.fillStyle = powerUp.type.color;
+                ctx.fillRect(powerUp.x, powerUp.y, 30, 30);
+
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(powerUp.x, powerUp.y, 30, 30);
+
+                powerUp.y -= invaderSpeed;
+
+                if (powerUp.y < 0) {
+                    powerUps.splice(index, 1);
+                }
+            });
+        }
+
+        function findNearestInvader(bullet) {
+            let nearestInvader = null;
+            let minDistance = Infinity;
+            invaders.forEach(invader => {
+                const dx = invader.x - bullet.x;
+                const dy = invader.y - bullet.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestInvader = invader;
+                }
+            });
+            return nearestInvader;
+        }
+
+        function detectCollisions() {
+            player.bullets.forEach((bullet, bulletIndex) => {
+                invaders.forEach((invader, invaderIndex) => {
+                    let collided = false;
+
+                    switch (invader.type.shape) {
+                        case 'rect':
+                            collided = bullet.x < invader.x + invader.type.width &&
+                                bullet.x + bullet.width > invader.x &&
+                                bullet.y < invader.y + invader.type.height &&
+                                bullet.y + bullet.height > invader.y;
+                            break;
+                        case 'circle':
+                            const dx = bullet.x - (invader.x + invader.type.radius);
+                            const dy = bullet.y - (invader.y + invader.type.radius);
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            collided = distance < invader.type.radius + bullet.width / 2;
+                            break;
+                        case 'triangle':
+                            collided = bullet.x < invader.x + invader.type.width &&
+                                bullet.x + bullet.width > invader.x &&
+                                bullet.y < invader.y + invader.type.height &&
+                                bullet.y + bullet.height > invader.y;
+                            break;
+                    }
+
+                    if (collided) {
+                        if (player.powerUps.explosive) {
+                            invaders.forEach((nearbyInvader, nearbyIndex) => {
+                                const dx = nearbyInvader.x - bullet.x;
+                                const dy = nearbyInvader.y - bullet.y;
+                                const distance = Math.sqrt(dx * dx + dy * dy);
+                                if (distance < 100) {
+                                    invaders.splice(nearbyIndex, 1);
+                                    createExplosion(nearbyInvader.x, nearbyInvader.y, nearbyInvader.type.color);
+                                }
+                            });
+                        }
+
+                        if (player.powerUps.chainLightning) {
+                            chainLightning(bullet);
+                        }
+
+                        player.bullets.splice(bulletIndex, 1);
+                        createExplosion(invader.x, invader.y, invader.type.color);
+                        if (Math.random() < 0.3) {
+                            spawnPowerUpAt(invader.x, invader.y);
+                        }
+                        invaders.splice(invaderIndex, 1);
+                        score++;
+                        document.getElementById('scoreboard').innerText = `Score: ${score}`;
+                        increaseDifficulty();
+                    }
                 });
-                canvas.clear();
-                if (uploadedImg) {
-                    canvas.add(uploadedImg);
+            });
+
+            invaders.forEach((invader) => {
+                let collided = false;
+
+                switch (invader.type.shape) {
+                    case 'rect':
+                        collided = player.x < invader.x + invader.type.width &&
+                            player.x + player.width > invader.x &&
+                            player.y < invader.y + invader.type.height &&
+                            player.y + player.height > invader.y;
+                        break;
+                    case 'circle':
+                        const dx = player.x - (invader.x + invader.type.radius);
+                        const dy = player.y - (invader.y + invader.type.radius);
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        collided = distance < invader.type.radius + player.width / 2;
+                        break;
+                    case 'triangle':
+                        collided = player.x < invader.x + invader.type.width &&
+                            player.x + player.width > invader.x &&
+                            player.y < invader.y + invader.type.height &&
+                            player.y + player.height > invader.y;
+                        break;
                 }
-                if (logoImg) {
-                    canvas.add(logoImg);
-                    logoImg.bringToFront();
+
+                if (collided) {
+                    gameOver = true;
                 }
-                canvas.add(img);
-                if (isResizeMode && uploadedImg) {
-                    canvas.setActiveObject(uploadedImg); // Keep the image active for resizing
+            });
+
+            powerUps.forEach((powerUp, powerUpIndex) => {
+                const collided = player.x < powerUp.x + 30 &&
+                    player.x + player.width > powerUp.x &&
+                    player.y < powerUp.y + 30 &&
+                    player.y + player.height > powerUp.y;
+
+                if (collided) {
+                    activatePowerUp(powerUp.type.type);
+                    showPowerUpMessage(powerUp.type.name);
+                    powerUps.splice(powerUpIndex, 1);
                 }
             });
         }
 
-        undoBtn.addEventListener('click', function () {
-            if (history.length > 0) {
-                const lastState = history.pop();
-                offscreenCtx.putImageData(lastState, 0, 0);
-                updateMainCanvas();
+        function activatePowerUp(type) {
+            player.powerUps[type]++;
+            if (type === 'fastBullet') {
+                player.fireRate = Math.max(10, player.fireRate - 10);
             }
-        });
-
-        colorPicker.addEventListener('change', function () {
-            if (canvas.freeDrawingBrush) {
-                canvas.freeDrawingBrush.color = colorPicker.value;
+            if (type === 'bulletMultiplier') {
+                player.powerUps.bulletMultiplier++;
             }
-        });
-
-        downloadBtn.addEventListener('click', function () {
-            canvas.discardActiveObject();
-            canvas.requestRenderAll();
-
-            const dataURL = canvas.toDataURL({
-                format: 'png',
-                quality: 1.0
-            });
-
-            const link = document.createElement('a');
-            link.download = 'octomask-composite.png';
-            link.href = dataURL;
-            link.click();
-        });
-
-        canvas.on('object:added', function () {
-            if (logoImg) {
-                logoImg.bringToFront(); // Ensure the logo is on top
+            if (type === 'doubleBullet') {
+                player.powerUps.bulletMultiplier *= 2;
             }
-        });
-
-        canvas.on('object:modified', function () {
-            if (logoImg) {
-                logoImg.bringToFront(); // Ensure the logo is on top
+            if (type === 'rapidFire') {
+                player.fireRate = Math.max(5, player.fireRate - 15);
             }
-        });
 
-        canvas.on('mouse:down', function () {
-            if (logoImg) {
-                logoImg.bringToFront(); // Ensure the logo is on top
+            if (activePowerUps[type]) {
+                clearTimeout(activePowerUps[type]);
             }
-        });
-
-        canvas.on('after:render', function () {
-            if (logoImg) {
-                logoImg.bringToFront(); // Ensure the logo is on top
-            }
-        });
-
-        // Add touch event support for mobile
-        canvas.on('touch:gesture', function (options) {
-            const event = options.e;
-            if (event.touches && event.touches.length === 2) {
-                canvas.isDrawingMode = false;
-                const point = new fabric.Point(canvas.width / 2, canvas.height / 2);
-                if (options.self.scaleX !== 1 && options.self.scaleY !== 1) {
-                    canvas.zoomToPoint(point, options.self.scaleX);
+            activePowerUps[type] = setTimeout(() => {
+                player.powerUps[type]--;
+                if (type === 'fastBullet') {
+                    player.fireRate += 10;
                 }
-            }
-        });
-
-        canvas.on('touch:drag', function (options) {
-            const event = options.e;
-            if (event.touches && event.touches.length === 1) {
-                const delta = new fabric.Point(options.self.x, options.self.y);
-                canvas.relativePan(delta);
-            }
-        });
-
-        canvas.on('touch:longpress', function (options) {
-            const event = options.e;
-            if (event.touches && event.touches.length === 1) {
-                const touch = event.touches[0];
-                const pointer = canvas.getPointer(touch);
-                const object = canvas.findTarget(pointer, true);
-                if (object) {
-                    canvas.setActiveObject(object);
+                if (type === 'bulletMultiplier') {
+                    player.powerUps.bulletMultiplier--;
                 }
-            }
-        });
-
-        // Adjust canvas size on window resize
-        window.addEventListener('resize', resizeCanvas);
-
-        function resizeCanvas() {
-            const container = document.querySelector('.canvas-container');
-            const containerWidth = container.clientWidth;
-
-            canvas.setWidth(containerWidth);
-            canvas.setHeight(containerWidth);
-
-            canvas.setZoom(containerWidth / 600);
-            canvas.renderAll();
+                if (type === 'doubleBullet') {
+                    player.powerUps.bulletMultiplier /= 2;
+                }
+                if (type === 'rapidFire') {
+                    player.fireRate += 15;
+                }
+            }, 16000);
         }
 
-        resizeCanvas();
+        function spawnPowerUpAt(x, y) {
+            const type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+            const powerUp = {
+                x: x,
+                y: y,
+                type: type
+            };
+            powerUps.push(powerUp);
+        }
+
+        function showPowerUpMessage(message) {
+            const powerUpMessage = document.getElementById('powerup-message');
+            powerUpMessage.innerText = message;
+            powerUpMessage.style.display = 'block';
+            clearTimeout(powerUpMessageTimeout);
+            powerUpMessageTimeout = setTimeout(() => {
+                powerUpMessage.style.display = 'none';
+            }, 1000);
+        }
+
+        function increaseDifficulty() {
+            enemySpeedIncreaseFactor += 0.05;
+            invaderSpeed = 2 * enemySpeedIncreaseFactor;
+            invaderSpawnRate = Math.max(200, invaderSpawnRate - 50);
+            clearInterval(invaderSpawnInterval);
+            invaderSpawnInterval = setInterval(spawnInvader, invaderSpawnRate);
+        }
+
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 10; i++) {
+                createParticle(x, y, color);
+            }
+        }
+
+        function createParticle(x, y, color) {
+            particles.push({
+                x: x,
+                y: y,
+                color: color,
+                size: Math.random() * 5 + 2,
+                speedX: (Math.random() - 0.5) * 3,
+                speedY: (Math.random() - 0.5) * 3,
+                life: 50
+            });
+        }
+
+        function drawParticles() {
+            particles.forEach((particle, index) => {
+                ctx.fillStyle = particle.color;
+                ctx.beginPath();
+                ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+                ctx.fill();
+
+                particle.x += particle.speedX;
+                particle.y += particle.speedY;
+                particle.size *= 0.95;
+                particle.life--;
+
+                if (particle.life <= 0) {
+                    particles.splice(index, 1);
+                }
+            });
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            player.x = e.clientX - player.width / 2;
+            player.y = e.clientY - player.height / 2;
+        });
+
+        let invaderSpawnInterval = setInterval(spawnInvader, invaderSpawnRate);
+        setInterval(spawnPowerUp, powerUpSpawnRate);
+        setInterval(shootBullet, player.fireRate);
+        gameLoop();
+
+        function gameLoop() {
+            if (gameOver) {
+                setTimeout(() => {
+                    alert("Game Over!");
+                    resetGame();
+                }, 100);
+                return;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawWaves();
+            drawPlayer();
+            drawBullets();
+            drawInvaders();
+            drawPowerUps();
+            drawParticles();
+            detectCollisions();
+            requestAnimationFrame(gameLoop);
+        }
     </script>
 </body>
-
 </html>
